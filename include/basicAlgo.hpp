@@ -1,6 +1,7 @@
 #pragma once
 #include "graph.hpp"
 #include <functional>
+#include <iostream>
 #include <memory>
 #include <queue>
 #include <stack>
@@ -29,7 +30,6 @@ std::vector<T*> DFS(const std::vector<T*>& starts,
     
     while (!stk.empty()) {
         T* curr = stk.top();
-        
         // 如果这个节点还没访问过
         if (visited.count(curr) == 0) {
             visited.insert(curr);
@@ -49,11 +49,17 @@ std::vector<T*> DFS(const std::vector<T*>& starts,
         } 
         // 如果访问过了，检查子节点是否都处理完了
         else if (finished.count(curr) == 0) {
-            std::vector<T*> nexts = getNexts(curr);
+            std::vector<T*> tmp = getNexts(curr);
+            std::vector<T*> nexts;
+            for(auto n:tmp){
+                if(n!=nullptr && visited.count(n)==0){
+                    nexts.push_back(n);
+                }
+            }
             bool all_finished = true;
             
             for (auto next : nexts) {
-                if (next != nullptr && visited.count(next) > 0 && finished.count(next) == 0) {
+                if (next != nullptr && finished.count(next) == 0) {
                     all_finished = false;
                     break;
                 }
@@ -106,9 +112,12 @@ std::vector<T *> BFS(const std::vector<T *>& starts,
                 visited.insert(next); 
             }
         }
-        if(postVisit){
-            postVisit(curr);
-        }
+    }
+
+    if(postVisit){
+        for(int i=order.size()-1;i>=0;i--){
+            postVisit(order[i]);
+        }   
     }
     return order;
 }

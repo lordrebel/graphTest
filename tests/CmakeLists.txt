@@ -1,9 +1,0 @@
-function(add_test name)
-  add_executable(
-    ${name}
-    ${name}.cpp
-  )
-endfunction(add_test)
-
-add_test(test_basic_graph)
-add_test(test_graph_walk)
