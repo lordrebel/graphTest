@@ -21,7 +21,7 @@ public:
       in_map_[vertex] = std::list<Edge>{};
     }
   }
-  virtual bool isDirected() = 0;
+  virtual bool isDirected() const = 0 ;
 
   void removeVertex(Pointer data) {
     auto it = out_map_.find(Vertex(data));
@@ -43,7 +43,7 @@ public:
 
   void
   getAdjacencyMap(std::unordered_map<Pointer, std::unordered_map<Pointer, int>>
-                      &adjacyMap) {
+                      &adjacyMap) const {
     adjacyMap.clear(); // 先清空输入的矩阵
 
     // 遍历所有顶点，初始化矩阵
@@ -73,7 +73,7 @@ public:
 
   void getReverseAdjacencyMap(
       std::unordered_map<Pointer, std::unordered_map<Pointer, int>>
-          &adjacyMap) {
+          &adjacyMap) const {
     adjacyMap.clear(); // 先清空输入的邻接表
 
     // 遍历所有顶点，初始化反向邻接表
@@ -148,20 +148,20 @@ public:
           [cur_edge](const Edge &e) { return e == cur_edge; });
     }
   }
-  virtual int getIndegrees(Pointer data) {
+  virtual int getIndegrees(Pointer data) const {
     if (in_map_.find(Vertex(data)) != in_map_.end()) {
-      return in_map_[Vertex(data)].size();
+      return in_map_.at(Vertex(data)).size();
     } else
       return -1;
   }
-  virtual int getOutdegrees(Pointer data) {
+  virtual int getOutdegrees(Pointer data) const {
     if (out_map_.find(Vertex(data)) != out_map_.end()) {
-      return out_map_[Vertex(data)].size();
+      return out_map_.at(Vertex(data)).size();
     } else
       return -1;
   }
-  virtual size_t numVertexs() { return in_map_.size(); }
-  virtual std::vector<Pointer> getAllVertexs() {
+  virtual size_t numVertexs() const { return in_map_.size(); }
+  virtual std::vector<Pointer> getAllVertexs() const {
     std::vector<Pointer> vertexs;
     for (const auto &pair : in_map_) {
       vertexs.push_back(pair.first.get_data());
@@ -221,7 +221,7 @@ public:
     }
   };
 
-  virtual std::vector<Edge> getAllEdges() {
+  virtual std::vector<Edge> getAllEdges() const {
     std::vector<Edge> res;
     for (const auto &pair : in_map_) {
       std::copy(pair.second.begin(), pair.second.end(),
@@ -230,24 +230,24 @@ public:
     return res;
   }
 
-  virtual void getEdges(Pointer data, std::vector<Edge> &res) {
+  virtual void getEdges(Pointer data, std::vector<Edge> &res) const {
     res.clear();
-    std::copy(in_map_[Vertex(data)].begin(), in_map_[Vertex(data)].end(),
+    std::copy(in_map_.at(Vertex(data)).begin(), in_map_.at(Vertex(data)).end(),
               std::back_inserter(res));
     if (isDirected()) {
-      std::copy(out_map_[Vertex(data)].begin(), out_map_[Vertex(data)].end(),
+      std::copy(out_map_.at(Vertex(data)).begin(), out_map_.at(Vertex(data)).end(),
                 std::back_inserter(res));
     }
   }
-  virtual void getInEdges(Pointer data, std::vector<Edge> &res) {
+  virtual void getInEdges(Pointer data, std::vector<Edge> &res) const {
     res.clear();
-    std::copy(in_map_[Vertex(data)].begin(), in_map_[Vertex(data)].end(),
+    std::copy(in_map_.at(Vertex(data)).begin(), in_map_.at(Vertex(data)).end(),
               std::back_inserter(res));
     return;
   }
-  virtual void getOutEdges(Pointer data, std::vector<Edge> &res) {
+  virtual void getOutEdges(Pointer data, std::vector<Edge> &res) const {
     res.clear();
-    std::copy(out_map_[Vertex(data)].begin(), out_map_[Vertex(data)].end(),
+    std::copy(out_map_.at(Vertex(data)).begin(), out_map_.at(Vertex(data)).end(),
               std::back_inserter(res));
     return;
   }
@@ -264,14 +264,14 @@ template <typename dataT> class DirectedGraph : public Graph<dataT> {
 public:
   // 构造函数
   DirectedGraph() : Graph<dataT>() {};
-  bool isDirected() override { return true; }
+  bool isDirected() const override { return true; }
 };
 
 template <typename dataT> class UnDirectedGraph : public Graph<dataT> {
 public:
   // 构造函数
   UnDirectedGraph() : Graph<dataT>() {};
-  bool isDirected() override { return false; }
+  bool isDirected() const override { return false; }
   bool addEdge(typename Graph<dataT>::Pointer src,
                typename Graph<dataT>::Pointer dest, int weight = 0) override {
     // 添加从src到dest的边
@@ -281,7 +281,7 @@ public:
     return true;
   }
 
-  std::vector<typename Graph<dataT>::Edge> getAllEdges() override {
+  std::vector<typename Graph<dataT>::Edge> getAllEdges() const override {
     std::vector<typename Graph<dataT>::Edge> res;
     std::unordered_set<typename Graph<dataT>::Pointer> visited;
     for (auto &pair : this->in_map_) {

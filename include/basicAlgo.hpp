@@ -153,7 +153,7 @@ public:
     }
   }
 
-  DataT *findPArent(DataT *data) {
+  DataT *findParent(DataT *data) {
     if (data == nullptr) {
       return nullptr;
     }
@@ -172,7 +172,7 @@ public:
     std::unordered_map<DataT *, std::vector<DataT *>> groups;
     for (const auto &pair : id_map_) {
       DataT *data = pair.first;
-      DataT *parent_data = findPArent(data);
+      DataT *parent_data = findParent(data);
       if (parent_data != nullptr) {
         groups[parent_data].push_back(data);
       }
