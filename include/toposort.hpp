@@ -1,12 +1,14 @@
 #include "graph.hpp"
 #include "graph_check.hpp"
+#include "basicAlgo.hpp"
 #include <iostream>
 #include <queue>
 namespace graphTest {
+enum class TopoSortAlgo { Kahn, RPO };
 namespace {
 template <typename T>
 std::vector<typename Graph<T>::Pointer>
-TopologicalSortDAG(Graph<T> *g, bool reverse = false) {
+TopologicalSortKahn(Graph<T> *g, bool reverse = false) {
   std::queue<typename Graph<T>::Pointer> q;
   std::unordered_set<typename Graph<T>::Pointer> visited;
   std::vector<typename Graph<T>::Pointer> order;
@@ -43,11 +45,31 @@ TopologicalSortDAG(Graph<T> *g, bool reverse = false) {
   return order;
 }
 
+template <typename T>
+std::vector<typename Graph<T>::Pointer>
+TopologicalSortRPO(Graph<T> *g, bool reverse = false) {
+  std::vector<typename Graph<T>::Pointer> postOrder;
+  auto postVisit = [&](typename Graph<T>::Pointer v) {
+    postOrder.push_back(v);
+  };
+
+  std::function<std::vector<typename Graph<T>::Pointer>(
+      typename Graph<T>::Pointer)>
+      getNexts = [g, reverse](typename Graph<T>::Pointer data) {
+        return reverse ? g->getPrev(data) : g->getNext(data);
+      };
+  auto allVertexs = g->getAllVertexs();
+  DFS<T>(allVertexs, getNexts, nullptr, postVisit);
+  std::reverse(postOrder.begin(), postOrder.end());
+  return postOrder;
+}
+
 } // namespace
 
 template <typename T>
-std::vector<typename Graph<T>::Pointer> TopologicalSort(Graph<T> *g,
-                                                        bool reverse = false) {
+std::vector<typename Graph<T>::Pointer>
+TopologicalSort(Graph<T> *g, bool reverse = false,
+                TopoSortAlgo algo = TopoSortAlgo::Kahn) {
   if (g == nullptr) {
     std::cerr << "nullptr input graph\n";
     return {};
@@ -56,7 +78,14 @@ std::vector<typename Graph<T>::Pointer> TopologicalSort(Graph<T> *g,
     std::cerr << "Input graph is not a DAG,cannot toposort\n";
     return {};
   }
-  return TopologicalSortDAG(g, reverse);
+  if (algo == TopoSortAlgo::Kahn) {
+    return TopologicalSortKahn(g, reverse);
+  } else if (algo == TopoSortAlgo::RPO) {
+    return TopologicalSortRPO(g, reverse);
+  } else {
+    std::cerr << "Unknown toposort algorithm\n";
+    return {};
+  }
 }
 
 } // namespace graphTest

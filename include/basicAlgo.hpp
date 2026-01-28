@@ -12,7 +12,7 @@ namespace graphTest {
 
 template <typename T>
 std::vector<T *> DFS(const std::vector<T *> &starts,
-                     std::function<std::vector<T *>(T *)> &getNexts,
+                     const std::function<std::vector<T *>(T *)> &getNexts,
                      const std::function<void(T *)> &preVisit = nullptr,
                      const std::function<void(T *)> &postVisit = nullptr) {
   if (starts.empty())
