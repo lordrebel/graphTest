@@ -5,6 +5,7 @@
 #include <iostream>
 #include <memory>
 #include <unordered_map>
+#include <vector>
 
 namespace graphTest {
 namespace {
@@ -47,8 +48,45 @@ std::vector<std::unique_ptr<Graph<T>>> getMSTsKruskal(const Graph<T> *graph) {
 
 template <typename T>
 std::vector<std::unique_ptr<Graph<T>>> getMSTsPrim(const Graph<T> *graph) {
-  std::cerr << "not finished";
-  exit(1);
+  std::unordered_set<T*> unvisited;
+  for (const auto &v : graph->getAllVertexs()) {
+    unvisited.insert(v);
+  }
+  std::vector<std::unique_ptr<Graph<T>>> mst_graphs;
+  while (!unvisited.empty()) {
+    auto mst_graph = std::make_unique<UnDirectedGraph<T>>();
+    T *start_node = *unvisited.begin();
+    mst_graph->addVertex(start_node);
+    unvisited.erase(start_node);
+    using EdgeType = typename Graph<T>::Edge;
+    auto cmp = [](const EdgeType &a, const EdgeType &b) { return a.weight_ > b.weight_; };
+    std::priority_queue<EdgeType, std::vector<EdgeType>, decltype(cmp)> edge_pq(cmp);
+    std::vector<EdgeType> edges;
+    graph->getOutEdges(start_node, edges);
+    for (const auto &e : edges) {
+      edge_pq.push(e);
+    }
+    while (!edge_pq.empty()) {
+      auto cur_edge = edge_pq.top();
+      edge_pq.pop();
+      T *to_node = cur_edge.to.get_data();
+      if (unvisited.count(to_node) == 0) {
+        continue;
+      }
+      // add edge to mst
+      mst_graph->addEdge(cur_edge.from.get_data(), to_node, cur_edge.weight_);
+      unvisited.erase(to_node);
+      // add new edges
+      graph->getOutEdges(to_node, edges);
+      for (const auto &e : edges) {
+        if (unvisited.count(e.to.get_data()) > 0) {
+          edge_pq.push(e);
+        }
+      }
+    }
+    mst_graphs.push_back(std::move(mst_graph));
+  }
+  return mst_graphs;
 }
 
 } // namespace
