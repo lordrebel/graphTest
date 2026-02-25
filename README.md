@@ -11,6 +11,7 @@ graphTest is a header-only library for the algorithm of Graph-theory
 - [X] Bipartite Graph Check
 - [X] Minimum Spanning Tree -kruskal
 - [X] Minimum Spanning Tree -prim
-- [ ] Minimum Directed Spanning Tree -zhuliu
+- [X] Directed Minimum  Spanning Tree -zhuliu
+- [ ] Directed Minimum  Spanning Tree -tarjan
 - [ ] test MST/MSDT
 
