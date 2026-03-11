@@ -12,6 +12,7 @@ graphTest is a header-only library for the algorithm of Graph-theory
 - [X] Minimum Spanning Tree -kruskal
 - [X] Minimum Spanning Tree -prim
 - [X] Directed Minimum  Spanning Tree -zhuliu
-- [ ] Directed Minimum  Spanning Tree -tarjan
-- [ ] test MST/MSDT
+- [X] Directed Minimum  Spanning Tree -tarjan
+- [X] test MST/MSDT
+- [ ] shortest path:bellman-fold/john/Dijkstra
 

@@ -144,7 +144,7 @@ void test_dmst_zhuliu() {
   dg.addEdge(&data[3], &data[4], 7);
   dg.addEdge(&data[5], &data[6], 8);
   auto dmst_graphs = gt::getDMSTs<std::string>(&dg, gt::ZHULIU);
-  assert(dmst_graphs.size() == 2); // only one dmst for directed graph
+  assert(dmst_graphs.size() == 2); 
   std::sort(dmst_graphs.begin(), dmst_graphs.end(),
             [](const auto &a, const auto &b) {
               return a->numVertexs() > b->numVertexs();
@@ -167,9 +167,57 @@ void test_dmst_zhuliu() {
   }
   assert(total_weight2 == 8);
 }
+void  test_dmst_tarjan() {
+  vector<std::string> data = {"A", "B", "C", "D", "E", "F", "G"};
+  gt::UnDirectedGraph<std::string> ug;
+  ug.addEdge(&data[0], &data[1], 2);
+  ug.addEdge(&data[0], &data[2], 3);
+  ug.addEdge(&data[1], &data[2], 1);
+  ug.addEdge(&data[1], &data[3], 4);
+  ug.addEdge(&data[2], &data[3], 5);
+  ug.addEdge(&data[2], &data[4], 6);
+  ug.addEdge(&data[3], &data[4], 7);
+  ug.addEdge(&data[5], &data[6], 8);
+  auto undirected_mst_graphs = gt::getDMSTs<std::string>(&ug, gt::TARJAN);
+  assert(undirected_mst_graphs.size() == 0); // dmst for directed graph only
+
+  gt::DirectedGraph<std::string> dg;
+  dg.addEdge(&data[0], &data[1], 2);
+  dg.addEdge(&data[0], &data[2], 3);
+  dg.addEdge(&data[1], &data[2], 1);
+  dg.addEdge(&data[1], &data[3], 4);
+  dg.addEdge(&data[2], &data[3], 5);
+  dg.addEdge(&data[2], &data[4], 6);
+  dg.addEdge(&data[3], &data[4], 7);
+  dg.addEdge(&data[5], &data[6], 8);
+  auto dmst_graphs = gt::getDMSTs<std::string>(&dg, gt::TARJAN);
+  assert(dmst_graphs.size() == 2); 
+  std::sort(dmst_graphs.begin(), dmst_graphs.end(),
+            [](const auto &a, const auto &b) {
+              return a->numVertexs() > b->numVertexs();
+            });
+  
+  auto &dmst1 = dmst_graphs[0]; // 现在 0 肯定是那个 5 节点的了
+  assert(dmst1->numVertexs() == 5);
+  auto edges1 = dmst1->getAllEdges();
+  int total_weight1 = 0;
+  for (const auto &e : edges1) {
+    total_weight1 += e.weight_;
+  }
+  assert(total_weight1 == 13);
+  auto &dmst2 = dmst_graphs[1];
+  assert(dmst2->numVertexs() == 2);
+  auto edges2 = dmst2->getAllEdges();
+  int total_weight2 = 0;
+  for (const auto &e : edges2) {
+    total_weight2 += e.weight_;
+  }
+  assert(total_weight2 == 8);
+}
 int main() {
   TEST_AND_RUN(test_mst_kruskal);
   TEST_AND_RUN(test_mst_prim);
   TEST_AND_RUN(test_dmst_zhuliu);
+  TEST_AND_RUN(test_dmst_tarjan);
   return 0;
 }

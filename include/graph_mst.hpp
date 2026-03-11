@@ -1,13 +1,15 @@
 
+#pragma once
 #include "basicAlgo.hpp"
 #include "graph.hpp"
 #include <algorithm>
+#include <climits>
 #include <iostream>
 #include <memory>
+#include <numeric>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
-#include <climits>
 
 namespace graphTest {
 namespace {
@@ -98,178 +100,422 @@ std::vector<std::unique_ptr<Graph<T>>> getMSTsPrim(const Graph<T> *graph) {
 
 template <typename T>
 std::vector<std::unique_ptr<Graph<T>>> getDMSTsZhuLiu(const Graph<T> *graph) {
-    using Vertex = typename Graph<T>::Pointer;
-    auto vs = graph->getAllVertexs();
-    if (vs.empty()) return {};
+  using Vertex = typename Graph<T>::Pointer;
+  auto vs = graph->getAllVertexs();
+  if (vs.empty())
+    return {};
 
-    int n = vs.size();
-    
-    // 1. 结构准备：记录 u, v, w 以及它们对应的原始顶点索引
-    struct InternalEdge {
-        int u, v, w;
-        int orig_u, orig_v;
-    };
+  int n = vs.size();
 
-    std::vector<InternalEdge> edges;
-    std::unordered_map<Vertex, int> v2id;
-    for (int i = 0; i < n; ++i) v2id[vs[i]] = i;
+  // 1. 结构准备：记录 u, v, w 以及它们对应的原始顶点索引
+  struct InternalEdge {
+    int u, v, w;
+    int orig_u, orig_v;
+  };
 
-    std::unordered_map<Vertex, std::unordered_map<Vertex, int>> adj;
-    graph->getAdjacencyMap(adj);
+  std::vector<InternalEdge> edges;
+  std::unordered_map<Vertex, int> v2id;
+  for (int i = 0; i < n; ++i)
+    v2id[vs[i]] = i;
 
-    long long weight_sum = 0;
-    for (const auto& u_pair : adj) {
-        int u = v2id[u_pair.first];
-        for (const auto& v_pair : u_pair.second) {
-            int v = v2id[v_pair.first];
-            if (u == v) continue;
-            edges.push_back({u, v, v_pair.second, u, v});
-            weight_sum += std::abs(v_pair.second);
-        }
+  std::unordered_map<Vertex, std::unordered_map<Vertex, int>> adj;
+  graph->getAdjacencyMap(adj);
+
+  long long weight_sum = 0;
+  for (const auto &u_pair : adj) {
+    int u = v2id[u_pair.first];
+    for (const auto &v_pair : u_pair.second) {
+      int v = v2id[v_pair.first];
+      if (u == v)
+        continue;
+      edges.push_back({u, v, v_pair.second, u, v});
+      weight_sum += std::abs(v_pair.second);
+    }
+  }
+
+  // 2. 超级虚拟根：ID 设为 n，建立全连通
+  int virtual_root = n;
+  int INF_W = static_cast<int>(weight_sum + 7);
+  for (int i = 0; i < n; ++i) {
+    edges.push_back({virtual_root, i, INF_W, virtual_root, i});
+  }
+
+  struct FinalEdge {
+    int u, v, w;
+  };
+
+  // 3. 朱-刘缩点递归
+  auto solve =
+      [&](auto self, int num_v, int curr_root,
+          std::vector<InternalEdge> curr_edges) -> std::vector<FinalEdge> {
+    std::vector<int> min_in(num_v, INT_MAX);
+    std::vector<int> pre(num_v, -1);
+    std::vector<InternalEdge> min_edge_info(num_v);
+
+    // 选最小入边
+    for (const auto &e : curr_edges) {
+      if (e.u != e.v && e.v != curr_root && e.w < min_in[e.v]) {
+        min_in[e.v] = e.w;
+        pre[e.v] = e.u;
+        min_edge_info[e.v] = e;
+      }
     }
 
-    // 2. 超级虚拟根：ID 设为 n，建立全连通
-    int virtual_root = n;
-    int INF_W = static_cast<int>(weight_sum + 7); 
-    for (int i = 0; i < n; ++i) {
-        edges.push_back({virtual_root, i, INF_W, virtual_root, i});
+    // 找环逻辑
+    std::vector<int> id(num_v, -1);
+    std::vector<int> visit(num_v, -1);
+    int group_cnt = 0;
+
+    for (int i = 0; i < num_v; ++i) {
+      if (i == curr_root)
+        continue;
+      int v = i;
+      while (v != curr_root && visit[v] != i && id[v] == -1) {
+        visit[v] = i;
+        v = pre[v];
+      }
+      if (v != curr_root && id[v] == -1 && visit[v] == i) {
+        int start = v;
+        do {
+          id[v] = group_cnt;
+          v = pre[v];
+        } while (v != start);
+        group_cnt++;
+      }
     }
 
-    struct FinalEdge { int u, v, w; };
-
-    // 3. 朱-刘缩点递归
-    auto solve = [&](auto self, int num_v, int curr_root, std::vector<InternalEdge> curr_edges) -> std::vector<FinalEdge> {
-        std::vector<int> min_in(num_v, INT_MAX);
-        std::vector<int> pre(num_v, -1);
-        std::vector<InternalEdge> min_edge_info(num_v);
-
-        // 选最小入边
-        for (const auto& e : curr_edges) {
-            if (e.u != e.v && e.v != curr_root && e.w < min_in[e.v]) {
-                min_in[e.v] = e.w;
-                pre[e.v] = e.u;
-                min_edge_info[e.v] = e;
-            }
-        }
-
-        // 找环逻辑
-        std::vector<int> id(num_v, -1);
-        std::vector<int> visit(num_v, -1);
-        int group_cnt = 0;
-
-        for (int i = 0; i < num_v; ++i) {
-            if (i == curr_root) continue;
-            int v = i;
-            while (v != curr_root && visit[v] != i && id[v] == -1) {
-                visit[v] = i;
-                v = pre[v];
-            }
-            if (v != curr_root && id[v] == -1 && visit[v] == i) {
-                int start = v;
-                do {
-                    id[v] = group_cnt;
-                    v = pre[v];
-                } while (v != start);
-                group_cnt++;
-            }
-        }
-
-        // 无环了，开始回档
-        if (group_cnt == 0) {
-            std::vector<FinalEdge> res;
-            for (int i = 0; i < num_v; ++i) {
-                if (i == curr_root) continue;
-                int u_orig = min_edge_info[i].orig_u;
-                int v_orig = min_edge_info[i].orig_v;
-                // 虚拟边权重处理
-                int weight = (u_orig == virtual_root) ? INF_W : adj[vs[u_orig]][vs[v_orig]];
-                res.push_back({u_orig, v_orig, weight});
-            }
-            return res;
-        }
-
-        for (int i = 0; i < num_v; ++i) if (id[i] == -1) id[i] = group_cnt++;
-
-        // 缩点更新权限
-        std::vector<InternalEdge> next_edges;
-        for (const auto& e : curr_edges) {
-            int u = id[e.u], v = id[e.v];
-            if (u != v) {
-                next_edges.push_back({u, v, e.w - min_in[e.v], e.orig_u, e.orig_v});
-            }
-        }
-
-        auto sub_res = self(self, group_cnt, id[curr_root], next_edges);
-        
-        // 关键：还原被挤掉的入边
-        std::vector<bool> covered(num_v, false);
-        std::vector<FinalEdge> final_res;
-        for (const auto& e : sub_res) {
-            final_res.push_back(e);
-            for (const auto& ce : curr_edges) {
-                if (ce.orig_u == e.u && ce.orig_v == e.v) {
-                    covered[ce.v] = true;
-                    break;
-                }
-            }
-        }
-        for (int i = 0; i < num_v; ++i) {
-            if (i != curr_root && !covered[i]) {
-                int u_orig = min_edge_info[i].orig_u;
-                int v_orig = min_edge_info[i].orig_v;
-                int weight = (u_orig == virtual_root) ? INF_W : adj[vs[u_orig]][vs[v_orig]];
-                final_res.push_back({u_orig, v_orig, weight});
-            }
-        }
-        return final_res;
-    };
-
-    // 4. 计算结果并修剪
-    auto all_edges = solve(solve, n + 1, virtual_root, edges);
-
-    std::vector<FinalEdge> forest_edges;
-    for (auto& e : all_edges) {
-        // 去掉从虚拟上帝节点出来的边
-        if (e.u != virtual_root) forest_edges.push_back(e);
+    // 无环了，开始回档
+    if (group_cnt == 0) {
+      std::vector<FinalEdge> res;
+      for (int i = 0; i < num_v; ++i) {
+        if (i == curr_root)
+          continue;
+        int u_orig = min_edge_info[i].orig_u;
+        int v_orig = min_edge_info[i].orig_v;
+        // 虚拟边权重处理
+        int weight =
+            (u_orig == virtual_root) ? INF_W : adj[vs[u_orig]][vs[v_orig]];
+        res.push_back({u_orig, v_orig, weight});
+      }
+      return res;
     }
 
-    // 5. 【修正】UnionFind 正确姿势：传 T* 指针
-    UnionFind<T> uf;
-    for (int i = 0; i < n; ++i) uf.add(vs[i]); 
-    for (auto& e : forest_edges) uf.merge(vs[e.u], vs[e.v]); 
+    for (int i = 0; i < num_v; ++i)
+      if (id[i] == -1)
+        id[i] = group_cnt++;
 
-    auto groups = uf.getGroups(); // map<T*, vector<T*>>
-    std::vector<std::unique_ptr<Graph<T>>> results;
-
-    for (auto& pair : groups) {
-        auto dmst = std::make_unique<DirectedGraph<T>>();
-        std::unordered_set<Vertex> group_nodes(pair.second.begin(), pair.second.end());
-        
-        for (auto& e : forest_edges) {
-            if (group_nodes.count(vs[e.v])) { 
-                dmst->addEdge(vs[e.u], vs[e.v], e.w);
-            }
-        }
-        // 保证孤立点也在里面
-        for (Vertex node : pair.second) dmst->addVertex(node);
-        results.push_back(std::move(dmst));
+    // 缩点更新权限
+    std::vector<InternalEdge> next_edges;
+    for (const auto &e : curr_edges) {
+      int u = id[e.u], v = id[e.v];
+      if (u != v) {
+        next_edges.push_back({u, v, e.w - min_in[e.v], e.orig_u, e.orig_v});
+      }
     }
 
-    return results;
+    auto sub_res = self(self, group_cnt, id[curr_root], next_edges);
+
+    // 关键：还原被挤掉的入边
+    std::vector<bool> covered(num_v, false);
+    std::vector<FinalEdge> final_res;
+    for (const auto &e : sub_res) {
+      final_res.push_back(e);
+      for (const auto &ce : curr_edges) {
+        if (ce.orig_u == e.u && ce.orig_v == e.v) {
+          covered[ce.v] = true;
+          break;
+        }
+      }
+    }
+    for (int i = 0; i < num_v; ++i) {
+      if (i != curr_root && !covered[i]) {
+        int u_orig = min_edge_info[i].orig_u;
+        int v_orig = min_edge_info[i].orig_v;
+        int weight =
+            (u_orig == virtual_root) ? INF_W : adj[vs[u_orig]][vs[v_orig]];
+        final_res.push_back({u_orig, v_orig, weight});
+      }
+    }
+    return final_res;
+  };
+
+  // 4. 计算结果并修剪
+  auto all_edges = solve(solve, n + 1, virtual_root, edges);
+
+  std::vector<FinalEdge> forest_edges;
+  for (auto &e : all_edges) {
+    // 去掉从虚拟上帝节点出来的边
+    if (e.u != virtual_root)
+      forest_edges.push_back(e);
+  }
+
+  // 5. 【修正】UnionFind 正确姿势：传 T* 指针
+  UnionFind<T> uf;
+  for (int i = 0; i < n; ++i)
+    uf.add(vs[i]);
+  for (auto &e : forest_edges)
+    uf.merge(vs[e.u], vs[e.v]);
+
+  auto groups = uf.getGroups(); // map<T*, vector<T*>>
+  std::vector<std::unique_ptr<Graph<T>>> results;
+
+  for (auto &pair : groups) {
+    auto dmst = std::make_unique<DirectedGraph<T>>();
+    std::unordered_set<Vertex> group_nodes(pair.second.begin(),
+                                           pair.second.end());
+
+    for (auto &e : forest_edges) {
+      if (group_nodes.count(vs[e.v])) {
+        dmst->addEdge(vs[e.u], vs[e.v], e.w);
+      }
+    }
+    // 保证孤立点也在里面
+    for (Vertex node : pair.second)
+      dmst->addVertex(node);
+    results.push_back(std::move(dmst));
+  }
+
+  return results;
 }
 template <typename T>
 std::vector<std::unique_ptr<Graph<T>>> getDMSTsTarjan(const Graph<T> *graph) {
-  // TODO
-  return {};
+  using Vertex = typename Graph<T>::Pointer;
+  auto vs = graph->getAllVertexs();
+  if (vs.empty())
+    return {};
+
+  const int n = vs.size();
+  std::unordered_map<Vertex, int> v2id;
+  for (int i = 0; i < n; ++i) {
+    v2id[vs[i]] = i;
+  }
+
+  std::unordered_map<Vertex, std::unordered_map<Vertex, int>> adj;
+  graph->getAdjacencyMap(adj);
+
+  // `prev_edge_idx` 用来在缩点后的图和上一层图之间建立映射，方便最后展开。
+  struct Edge {
+    int u;
+    int v;
+    long long w;
+    int orig_u;
+    int orig_v;
+    int prev_edge_idx;
+  };
+
+  std::vector<Edge> edges;
+  long long weight_sum = 0;
+  for (const auto &u_pair : adj) {
+    int u = v2id[u_pair.first];
+    for (const auto &v_pair : u_pair.second) {
+      int v = v2id[v_pair.first];
+      if (u == v) {
+        continue;
+      }
+      edges.push_back({u, v, v_pair.second, u, v, -1});
+      weight_sum += std::abs(v_pair.second);
+    }
+  }
+
+  const int virtual_root = n;
+  const long long inf_w = weight_sum + 7;
+  for (int i = 0; i < n; ++i) {
+    edges.push_back({virtual_root, i, inf_w, virtual_root, i, -1});
+  }
+
+  // 每一层保存一次“选最小入边 -> 缩环”前后的信息，后面从后往前展开。
+  struct Level {
+    int num_v;
+    int root;
+    std::vector<Edge> edges;
+    std::vector<int> id;
+    std::vector<std::vector<int>> groups;
+    std::vector<int> in_edge_idx;
+  };
+
+  std::vector<Level> levels;
+  int num_v = n + 1;
+  int root = virtual_root;
+
+  while (true) {
+    // 第一步：对当前图中每个点选一条最小入边（根节点除外）。
+    std::vector<int> in_edge_idx(num_v, -1);
+    for (int i = 0; i < static_cast<int>(edges.size()); ++i) {
+      const auto &e = edges[i];
+      if (e.u == e.v || e.v == root) {
+        continue;
+      }
+      if (in_edge_idx[e.v] == -1 || e.w < edges[in_edge_idx[e.v]].w) {
+        in_edge_idx[e.v] = i;
+      }
+    }
+
+    std::vector<int> id(num_v, -1);
+    std::vector<int> visit(num_v, -1);
+    std::vector<std::vector<int>> groups;
+    int group_cnt = 0;
+
+    // 第二步：沿着“最小入边”追溯，找有向环。
+    for (int i = 0; i < num_v; ++i) {
+      if (i == root) {
+        continue;
+      }
+      int v = i;
+      while (v != root && visit[v] != i && id[v] == -1 &&
+             in_edge_idx[v] != -1) {
+        visit[v] = i;
+        v = edges[in_edge_idx[v]].u;
+      }
+      if (v != root && id[v] == -1 && visit[v] == i) {
+        groups.push_back({});
+        int start = v;
+        do {
+          id[v] = group_cnt;
+          groups.back().push_back(v);
+          v = edges[in_edge_idx[v]].u;
+        } while (v != start);
+        ++group_cnt;
+      }
+    }
+
+    // 没环时，当前选择已经是一棵最小树/森林，开始逐层展开回原图。
+    if (group_cnt == 0) {
+      std::vector<int> selected_edge_idx(num_v, -1);
+      for (int i = 0; i < num_v; ++i) {
+        if (i != root) {
+          selected_edge_idx[i] = in_edge_idx[i];
+        }
+      }
+
+      std::vector<Edge> current_edges = edges;
+      for (int level_idx = static_cast<int>(levels.size()) - 1; level_idx >= 0;
+           --level_idx) {
+        const auto &level = levels[level_idx];
+        std::vector<int> expanded_selected(level.num_v, -1);
+
+        // 如果某个缩点在更高层被选中一条入边，那展开时要把这条入边
+        // 落到环内真正被“切开”的那个顶点，其余顶点保留本层最小入边。
+        for (int group_id = 0; group_id < static_cast<int>(level.groups.size());
+             ++group_id) {
+          const auto &members = level.groups[group_id];
+          if (members.size() == 1) {
+            if (selected_edge_idx[group_id] != -1) {
+              expanded_selected[members[0]] =
+                  current_edges[selected_edge_idx[group_id]].prev_edge_idx;
+            }
+            continue;
+          }
+
+          int enter_vertex = -1;
+          if (selected_edge_idx[group_id] != -1) {
+            int prev_edge_idx =
+                current_edges[selected_edge_idx[group_id]].prev_edge_idx;
+            expanded_selected[level.edges[prev_edge_idx].v] = prev_edge_idx;
+            enter_vertex = level.edges[prev_edge_idx].v;
+          }
+
+          for (int member : members) {
+            if (member != enter_vertex) {
+              expanded_selected[member] = level.in_edge_idx[member];
+            }
+          }
+        }
+
+        current_edges = level.edges;
+        selected_edge_idx = std::move(expanded_selected);
+      }
+
+      struct FinalEdge {
+        int u;
+        int v;
+        int w;
+      };
+
+      // 去掉虚拟根引入的边，剩下的就是真实图里的 DMST/MSA 森林边。
+      std::vector<FinalEdge> forest_edges;
+      for (int i = 0; i < n; ++i) {
+        if (selected_edge_idx[i] == -1) {
+          continue;
+        }
+        const auto &e = current_edges[selected_edge_idx[i]];
+        if (e.orig_u == virtual_root) {
+          continue;
+        }
+        forest_edges.push_back(
+            {e.orig_u, e.orig_v, adj[vs[e.orig_u]][vs[e.orig_v]]});
+      }
+
+      UnionFind<T> uf;
+      for (int i = 0; i < n; ++i) {
+        uf.add(vs[i]);
+      }
+      for (const auto &e : forest_edges) {
+        uf.merge(vs[e.u], vs[e.v]);
+      }
+
+      auto groups_map = uf.getGroups();
+      std::vector<std::unique_ptr<Graph<T>>> results;
+      for (auto &pair : groups_map) {
+        auto dmst = std::make_unique<DirectedGraph<T>>();
+        std::unordered_set<Vertex> group_nodes(pair.second.begin(),
+                                               pair.second.end());
+        for (const auto &e : forest_edges) {
+          if (group_nodes.count(vs[e.v])) {
+            dmst->addEdge(vs[e.u], vs[e.v], e.w);
+          }
+        }
+        for (Vertex node : pair.second) {
+          dmst->addVertex(node);
+        }
+        results.push_back(std::move(dmst));
+      }
+      return results;
+    }
+
+    // 第三步：把每个环压成一个超点，非环点各自作为单独的组。
+    for (int i = 0; i < num_v; ++i) {
+      if (id[i] == -1) {
+        id[i] = group_cnt++;
+        groups.push_back({i});
+      }
+    }
+
+    levels.push_back({num_v, root, edges, id, groups, in_edge_idx});
+
+    std::vector<Edge> next_edges;
+    next_edges.reserve(edges.size());
+    for (int i = 0; i < static_cast<int>(edges.size()); ++i) {
+      const auto &e = edges[i];
+      int u = id[e.u];
+      int v = id[e.v];
+      if (u == v) {
+        continue;
+      }
+      long long new_weight = e.w;
+      // 进入一个环的边，要减掉该终点当前已选的最小入边权重，
+      // 这是缩点后保持相对代价正确的关键。
+      if (groups[v].size() > 1) {
+        new_weight -= edges[in_edge_idx[e.v]].w;
+      }
+      next_edges.push_back({u, v, new_weight, e.orig_u, e.orig_v, i});
+    }
+
+    // 在缩点图上继续下一轮。
+    root = id[root];
+    num_v = group_cnt;
+    edges = std::move(next_edges);
+  }
 }
 
 } // namespace
 enum MSTAlgo { KRUSKAL, PRIM };
-//If the graph is not connected, this function returns a Minimum Spanning Forest (MSF) represented as a collection of MSTs for each connected component.
+// If the graph is not connected, this function returns a Minimum Spanning
+// Forest (MSF) represented as a collection of MSTs for each connected
+// component.
 template <typename T>
 std::vector<std::unique_ptr<Graph<T>>> getMSTs(const Graph<T> *graph,
                                                MSTAlgo algo = KRUSKAL) {
-  
+
   if (graph == nullptr) {
     std::cerr << "input graph is nullptr" << std::endl;
     return {};

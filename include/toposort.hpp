@@ -1,3 +1,4 @@
+#pragma once
 #include "graph.hpp"
 #include "graph_check.hpp"
 #include "basicAlgo.hpp"
