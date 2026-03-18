@@ -1,3 +1,4 @@
+
 function(add_test_executable name)
   add_executable(
     ${name}
@@ -11,3 +12,4 @@ add_test_executable(test_graph_walk)
 add_test_executable(test_graph_check)
 add_test_executable(test_toposort)
 add_test_executable(test_mst)
+add_test_executable(test_shortest_path)
