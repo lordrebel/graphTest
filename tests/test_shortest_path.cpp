@@ -92,11 +92,36 @@ void test_floyd_warshall() {
   assert(shortest_tree_from_2.size() == 3);
 }
 
+
+void test_k_shortest_path_astar() {
+  std::vector<std::string> data = {"A", "B", "C", "D"};
+  gt::DirectedGraph<std::string> g;
+  g.addEdge(&data[0], &data[1], 1);
+  g.addEdge(&data[1], &data[3], 2);
+  g.addEdge(&data[0], &data[2], 2);
+  g.addEdge(&data[2], &data[3], 2);
+  g.addEdge(&data[1], &data[2], 1);
+
+  // Paths A->D:
+  // A->B->D (1+2 = 3)
+  // A->C->D (2+2 = 4)
+  // A->B->C->D (1+1+2 = 4)
+  
+  auto path1 = gt::KshortestPath(&g, &data[0], &data[3], gt::KShortestPathAlgo::A_STAR, 1);
+  auto path2 = gt::KshortestPath(&g, &data[0], &data[3], gt::KShortestPathAlgo::A_STAR, 2);
+  auto path3 = gt::KshortestPath(&g, &data[0], &data[3], gt::KShortestPathAlgo::A_STAR, 3);
+  assert(totalWeight<std::string>(path1) == 3);
+  assert(totalWeight<std::string>(path2) == 4);
+  assert(totalWeight<std::string>(path3) == 4);
+}
+
+
 int main() {
-  TEST_AND_RUN(test_dijkstra);
-  TEST_AND_RUN(test_bellman_ford);
-  TEST_AND_RUN(test_bellman_ford_negative_cycle);
-  TEST_AND_RUN(test_floyd_warshall);
+  test_dijkstra();
+  test_bellman_ford();
+  test_bellman_ford_negative_cycle();
+  test_floyd_warshall();
+  test_k_shortest_path_astar();
   std::cout << "All shortest path tests passed!" << std::endl;
   return 0;
 }

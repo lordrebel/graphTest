@@ -224,8 +224,56 @@ ShortestPathOneSourceJOHNSON(Graph<T> *graph, T *source) {
   return ShortestPathAllPairsJOHNSON(graph)[source];
 }
 
+template <typename T>
+std::vector<typename Graph<T>::Edge>
+KshortestPathDirectedA_Star(Graph<T> *graph, typename Graph<T>::Pointer source,
+                            typename Graph<T>::Pointer target, int k = 1) {
+  using Pointer = typename Graph<T>::Pointer;
+  using Edge = typename Graph<T>::Edge;
+  struct Path {
+    int cost;
+    Pointer current_node;
+    std::vector<Edge> edges;
+    bool operator>(const Path &o) const { return cost > o.cost; }
+  };
+  std::priority_queue<Path, std::vector<Path>, std::greater<Path>> pq;
+  pq.push({0, source, {}});
+  int count = 0;
+  std::vector<std::vector<Edge>> result;
+  std::unordered_map<Pointer, int> visit_count;
+  while (!pq.empty()) {
+    auto p = pq.top();
+    pq.pop();
+    visit_count[p.current_node]++;
+    if (p.current_node == target) {
+      count++;
+      if (count == k)
+        return p.edges;
+    }
+    if (visit_count[p.current_node] > k * 2)
+      continue;
+    std::vector<Edge> out_edges;
+    graph->getOutEdges(p.current_node, out_edges);
+    for (const auto &e : out_edges) {
+      Path next_p = p;
+      next_p.cost += e.weight_;
+      next_p.current_node = e.to.get_data();
+      next_p.edges.push_back(e);
+      pq.push(next_p);
+    }
+  }
+  return {};
+}
+template <typename T>
+std::vector<typename Graph<T>::Edge>
+KshortestPathUnDirectedA_Star(Graph<T> *graph,
+                              typename Graph<T>::Pointer source,
+                              typename Graph<T>::Pointer target, int k = 1) {
+  return KshortestPathDirectedA_Star(graph, source, target, k);
+}
 } // namespace
 namespace graphTest {
+
 enum ShortestPathAlgo { DIJKSTRA, BELLMAN_FORD, FLOYD_WARSHALL, JOHNSON };
 
 template <typename T>
@@ -269,4 +317,30 @@ ShortestPathAllPairs(Graph<T> *graph, ShortestPathAlgo algo) {
     return ShortestPathAllPairsJOHNSON(graph);
   }
 }
+
+enum KShortestPathAlgo { A_STAR };
+template <typename T>
+std::vector<typename Graph<T>::Edge>
+KshortestPath(Graph<T> *graph, typename Graph<T>::Pointer source,
+              typename Graph<T>::Pointer target, KShortestPathAlgo algo,
+              int k = 1) {
+  if (!graph)
+    return {};
+  if (graph->isDirected()) {
+    switch (algo) {
+    case KShortestPathAlgo::A_STAR:
+      return KshortestPathDirectedA_Star(graph, source, target, k);
+    default:
+      return {};
+    }
+  } else {
+    switch (algo) {
+    case KShortestPathAlgo::A_STAR:
+      return KshortestPathUnDirectedA_Star(graph, source, target, k);
+    default:
+      return {};
+    }
+  }
+}
+
 } // namespace graphTest
