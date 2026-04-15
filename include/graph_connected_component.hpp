@@ -1,15 +1,36 @@
 #pragma once
 #include "graph.hpp"
 #include <algorithm>
+#include <cstddef>
 #include <iostream>
+#include <queue>
 #include <stack>
 #include <unordered_map>
 #include <unordered_set>
+#include <utility>
 #include <vector>
 
 namespace graphTest {
 enum SCCAlgo { Tarjan, Kosaraju };
-}
+
+template <typename DataT> struct BlockForestResult {
+  typedef typename Graph<DataT>::Pointer Pointer;
+  enum class NodeType { Round, Square };
+
+  struct Node {
+    NodeType type = NodeType::Round;
+    Pointer vertex = nullptr;
+    std::size_t block_id = 0;
+  };
+
+  struct Tree {
+    std::vector<Node> nodes;
+    std::vector<std::pair<std::size_t, std::size_t>> edges;
+  };
+
+  std::vector<Tree> trees;
+};
+} // namespace graphTest
 
 namespace {
 template <typename DataT>
@@ -144,7 +165,8 @@ void tarjanVBCCDFS(
     std::unordered_map<typename graphTest::Graph<DataT>::Pointer, int> &dfn,
     std::unordered_map<typename graphTest::Graph<DataT>::Pointer, int> &low,
     std::stack<typename graphTest::Graph<DataT>::Pointer> &st,
-    std::vector<std::vector<typename graphTest::Graph<DataT>::Pointer>> &vbccs) {
+    std::vector<std::vector<typename graphTest::Graph<DataT>::Pointer>>
+        &vbccs) {
   typedef typename graphTest::Graph<DataT>::Pointer Pointer;
   dfn[u] = low[u] = ++timer;
   st.push(u);
@@ -154,7 +176,8 @@ void tarjanVBCCDFS(
   int children = 0;
   for (const auto &edge : outEdges) {
     Pointer v = edge.to.get_data();
-    if (v == p) continue;
+    if (v == p)
+      continue;
     if (dfn.find(v) == dfn.end()) {
       children++;
       tarjanVBCCDFS<DataT>(v, u, graph, timer, dfn, low, st, vbccs);
@@ -165,7 +188,8 @@ void tarjanVBCCDFS(
           Pointer top = st.top();
           st.pop();
           component.push_back(top);
-          if (top == v) break;
+          if (top == v)
+            break;
         }
         component.push_back(u);
         vbccs.push_back(component);
@@ -187,7 +211,8 @@ void tarjanEBCCDFS(
     std::unordered_map<typename graphTest::Graph<DataT>::Pointer, int> &dfn,
     std::unordered_map<typename graphTest::Graph<DataT>::Pointer, int> &low,
     std::stack<typename graphTest::Graph<DataT>::Pointer> &st,
-    std::vector<std::vector<typename graphTest::Graph<DataT>::Pointer>> &ebccs) {
+    std::vector<std::vector<typename graphTest::Graph<DataT>::Pointer>>
+        &ebccs) {
   typedef typename graphTest::Graph<DataT>::Pointer Pointer;
   dfn[u] = low[u] = ++timer;
   st.push(u);
@@ -196,7 +221,8 @@ void tarjanEBCCDFS(
   graph->getOutEdges(u, outEdges);
   for (const auto &edge : outEdges) {
     Pointer v = edge.to.get_data();
-    if (v == p) continue;
+    if (v == p)
+      continue;
     if (dfn.find(v) == dfn.end()) {
       tarjanEBCCDFS<DataT>(v, u, graph, timer, dfn, low, st, ebccs);
       low[u] = std::min(low[u], low[v]);
@@ -211,7 +237,8 @@ void tarjanEBCCDFS(
       Pointer v = st.top();
       st.pop();
       component.push_back(v);
-      if (v == u) break;
+      if (v == u)
+        break;
     }
     ebccs.push_back(component);
   }
@@ -287,6 +314,122 @@ getBiConnectedEdgeCC(const Graph<DataT> *graph) {
         tarjanEBCCDFS<DataT>(v, nullptr, graph, timer, dfn, low, st, ebccs);
     }
     return ebccs;
+  }
+}
+template <typename DataT>
+BlockForestResult<DataT> getBlockForest(const Graph<DataT> *graph) {
+  if (!graph) {
+    std::cerr << "Graph is null pointer" << std::endl;
+    return {};
+  } else if (graph->isDirected()) {
+    std::cerr << "Graph is directed block forest is for undirected graph"
+              << std::endl;
+    return {};
+  } else {
+    typedef typename Graph<DataT>::Pointer Pointer;
+    BlockForestResult<DataT> result;
+
+    const std::vector<Pointer> vertices = graph->getAllVertexs();
+    const std::vector<std::vector<Pointer>> vbccs =
+        getBiConnectedVertexCC(graph);
+
+    const std::size_t round_count = vertices.size();
+    const std::size_t square_count = vbccs.size();
+    const std::size_t total_nodes = round_count + square_count;
+
+    std::unordered_map<Pointer, std::size_t> round_index;
+    round_index.reserve(round_count);
+    for (std::size_t i = 0; i < round_count; ++i) {
+      round_index[vertices[i]] = i;
+    }
+
+    std::vector<typename BlockForestResult<DataT>::Node> global_nodes(
+        total_nodes);
+    for (std::size_t i = 0; i < round_count; ++i) {
+      global_nodes[i].type = BlockForestResult<DataT>::NodeType::Round;
+      global_nodes[i].vertex = vertices[i];
+      global_nodes[i].block_id = 0;
+    }
+    for (std::size_t i = 0; i < square_count; ++i) {
+      const std::size_t idx = round_count + i;
+      global_nodes[idx].type = BlockForestResult<DataT>::NodeType::Square;
+      global_nodes[idx].vertex = nullptr;
+      global_nodes[idx].block_id = i;
+    }
+
+    std::vector<std::vector<std::size_t>> adj(total_nodes);
+    for (std::size_t block_id = 0; block_id < square_count; ++block_id) {
+      const std::size_t square_idx = round_count + block_id;
+      std::unordered_set<Pointer> unique_vertices;
+      for (Pointer v : vbccs[block_id]) {
+        unique_vertices.insert(v);
+      }
+      for (Pointer v : unique_vertices) {
+        auto it = round_index.find(v);
+        if (it == round_index.end()) {
+          continue;
+        }
+        const std::size_t round_idx = it->second;
+        adj[round_idx].push_back(square_idx);
+        adj[square_idx].push_back(round_idx);
+      }
+    }
+
+    std::vector<bool> visited(total_nodes, false);
+    for (std::size_t start = 0; start < total_nodes; ++start) {
+      if (visited[start]) {
+        continue;
+      }
+
+      std::queue<std::size_t> q;
+      q.push(start);
+      visited[start] = true;
+
+      std::vector<std::size_t> component_nodes;
+      while (!q.empty()) {
+        const std::size_t cur = q.front();
+        q.pop();
+        component_nodes.push_back(cur);
+
+        for (std::size_t nxt : adj[cur]) {
+          if (!visited[nxt]) {
+            visited[nxt] = true;
+            q.push(nxt);
+          }
+        }
+      }
+
+      typename BlockForestResult<DataT>::Tree tree;
+      std::unordered_map<std::size_t, std::size_t> local_index;
+      local_index.reserve(component_nodes.size());
+      for (std::size_t i = 0; i < component_nodes.size(); ++i) {
+        const std::size_t global_idx = component_nodes[i];
+        local_index[global_idx] = i;
+        tree.nodes.push_back(global_nodes[global_idx]);
+      }
+
+      for (std::size_t global_u : component_nodes) {
+        auto local_u_it = local_index.find(global_u);
+        if (local_u_it == local_index.end()) {
+          continue;
+        }
+        const std::size_t local_u = local_u_it->second;
+        for (std::size_t global_v : adj[global_u]) {
+          if (global_u >= global_v) {
+            continue;
+          }
+          auto local_v_it = local_index.find(global_v);
+          if (local_v_it == local_index.end()) {
+            continue;
+          }
+          tree.edges.push_back({local_u, local_v_it->second});
+        }
+      }
+
+      result.trees.push_back(std::move(tree));
+    }
+
+    return result;
   }
 }
 
