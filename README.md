@@ -38,7 +38,7 @@ Implemented algorithms and checks:
 - [X] Edge BCC: tarjan
 - [X] vertex BCC:tarjan
 - [X] block forest
-- [ ] circle count
+- [X] circle count
 - [ ] minist circle
 - [ ] 2-SAT
 
