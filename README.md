@@ -39,8 +39,9 @@ Implemented algorithms and checks:
 - [X] vertex BCC:tarjan
 - [X] block forest
 - [X] circle count
-- [ ] minist circle
-- [ ] 2-SAT
+- [X] minist circle
+- [X] Eulerian graph/semi Eulerian graph
+- [ ] Hamilton graph/semi hamilton graph
 
 ## Project Layout
 
