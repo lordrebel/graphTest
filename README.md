@@ -42,6 +42,9 @@ Implemented algorithms and checks:
 - [X] minist circle
 - [X] Eulerian graph/semi Eulerian graph
 - [ ] Hamilton graph/semi hamilton graph
+- [ ] bipartite judge
+- [ ] graph color
+- [ ] graph network
 
 ## Project Layout
 
